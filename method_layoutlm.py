@@ -42,14 +42,8 @@ def detect_elements_with_layoutlm(image_path, save_results=True):
         image = Image.open(image_path).convert("RGB")
         
         # For LayoutLMv3, we need OCR results to provide text and bounding boxes
-        # We'll use a simple OCR approach or mock data for demonstration
-        # In practice, you'd use Tesseract or another OCR engine
-        
-        # Mock OCR results for demonstration (in real usage, use proper OCR)
-        words = ["SAAS", "product", "pricing", "plan", "Group", "$25", "Professional", "$65", "Enterprise", "$125", "Unlimited", "$250"]
-        boxes = [[100, 100, 150, 120], [160, 100, 220, 120], [230, 100, 290, 120], [300, 100, 340, 120],
-                 [120, 200, 180, 250], [120, 260, 160, 290], [400, 200, 500, 250], [400, 260, 440, 290],
-                 [700, 200, 800, 250], [700, 260, 750, 290], [1000, 200, 1100, 250], [1000, 260, 1050, 290]]
+        # Use actual OCR on this specific image
+        words, boxes = extract_text_with_tesseract_for_layoutlm(image_path)
         
         # Ensure we have the same number of words and boxes
         min_length = min(len(words), len(boxes))
@@ -188,40 +182,70 @@ def extract_text_with_tesseract_for_layoutlm(image_path):
         import pytesseract
         from PIL import Image
     except ImportError:
-        print("Tesseract not available, using mock OCR data")
-        # Return mock data
-        words = ["SAAS", "product", "pricing", "Group", "$25", "Professional", "$65"]
-        boxes = [[100, 100, 150, 120], [160, 100, 220, 120], [230, 100, 290, 120], 
-                 [120, 200, 180, 250], [120, 260, 160, 290], [400, 200, 500, 250], [400, 260, 440, 290]]
-        return words, boxes
+        print("Tesseract not available, using EasyOCR fallback")
+        return extract_text_with_easyocr_for_layoutlm(image_path)
     
     try:
         image = Image.open(image_path)
         
         # Get OCR data with bounding boxes
-        ocr_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT)
+        ocr_data = pytesseract.image_to_data(image, output_type=pytesseract.Output.DICT, config='--psm 6')
         
         words = []
         boxes = []
         
         for i, word in enumerate(ocr_data['text']):
-            if word.strip():  # Skip empty words
+            if word.strip() and int(ocr_data['conf'][i]) > 30:  # Filter by confidence
                 x = ocr_data['left'][i]
                 y = ocr_data['top'][i]
                 w = ocr_data['width'][i]
                 h = ocr_data['height'][i]
                 
-                words.append(word)
-                boxes.append([x, y, x + w, y + h])
+                # Skip very small text regions
+                if w > 10 and h > 10:
+                    words.append(word.strip())
+                    boxes.append([x, y, x + w, y + h])
         
+        print(f"Tesseract OCR found {len(words)} words in {image_path}")
         return words, boxes
         
     except Exception as e:
         print(f"Error in Tesseract OCR: {str(e)}")
-        # Return mock data as fallback
-        words = ["SAAS", "product", "pricing", "Group", "$25"]
-        boxes = [[100, 100, 150, 120], [160, 100, 220, 120], [230, 100, 290, 120], [120, 200, 180, 250], [120, 260, 160, 290]]
+        return extract_text_with_easyocr_for_layoutlm(image_path)
+
+
+def extract_text_with_easyocr_for_layoutlm(image_path):
+    """
+    Fallback: Extract text using EasyOCR for LayoutLM input
+    """
+    try:
+        import easyocr
+        reader = easyocr.Reader(['en'])
+        
+        # Get OCR results
+        results = reader.readtext(image_path)
+        
+        words = []
+        boxes = []
+        
+        for (bbox, text, confidence) in results:
+            if confidence > 0.3:  # Filter by confidence
+                # Convert bbox format: [[x1,y1],[x2,y2],[x3,y3],[x4,y4]] -> [x1,y1,x2,y2]
+                x_coords = [point[0] for point in bbox]
+                y_coords = [point[1] for point in bbox]
+                x1, y1 = min(x_coords), min(y_coords)
+                x2, y2 = max(x_coords), max(y_coords)
+                
+                words.append(text)
+                boxes.append([int(x1), int(y1), int(x2), int(y2)])
+        
+        print(f"EasyOCR found {len(words)} text regions in {image_path}")
         return words, boxes
+        
+    except Exception as e:
+        print(f"Error in EasyOCR: {str(e)}")
+        # Return minimal fallback data based on image name
+        return ["Document", "Text"], [[50, 50, 150, 80], [200, 50, 300, 80]]
 
 
 def visualize_layoutlm_results(image_path, results, output_path=None):

@@ -32,14 +32,17 @@ def detect_elements_with_paddleocr(image_path, save_results=True):
         print("PaddleOCR not available - skipping")
         return []
         
-    # Initialize PP-Structure for layout detection
+    # Initialize PP-Structure for layout detection with more sensitive settings
     ocr = PPStructure(
         layout_model="PP-DocLayout-M",  # Use PP-DocLayout-M for better layout detection
-        table=False,                    # Disable table recognition for now
+        table=True,                     # Enable table recognition
         ocr=True,                      # Enable OCR
         show_log=False,                # Reduce logging
         recovery=True,                 # Enable reading order recovery
-        use_gpu=False                  # Set to True if GPU available
+        use_gpu=False,                 # Set to True if GPU available
+        layout_thresh=0.3,             # Lower threshold for more sensitive detection
+        det_db_thresh=0.2,             # Lower detection threshold
+        det_db_box_thresh=0.3          # Lower box threshold
     )
     
     results = []
@@ -52,6 +55,35 @@ def detect_elements_with_paddleocr(image_path, save_results=True):
             
         # Run structure analysis
         result = ocr(img)
+        
+        # If we get too few results, try with regular PaddleOCR for more text detection
+        if len(result) < 3:
+            print("Few results from PP-Structure, trying regular PaddleOCR for more text detection...")
+            regular_ocr = PaddleOCR(use_angle_cls=True, lang='en', 
+                                   det_db_thresh=0.2, det_db_box_thresh=0.3,
+                                   show_log=False)
+            ocr_result = regular_ocr.ocr(img, cls=True)
+            
+            # Add OCR results to structure results
+            if ocr_result and ocr_result[0]:
+                for idx, line in enumerate(ocr_result[0]):
+                    if line:
+                        bbox_coords, (text, confidence) = line
+                        if confidence > 0.3:  # Filter by confidence
+                            # Convert bbox format
+                            x_coords = [point[0] for point in bbox_coords]
+                            y_coords = [point[1] for point in bbox_coords]
+                            x1, y1 = min(x_coords), min(y_coords) 
+                            x2, y2 = max(x_coords), max(y_coords)
+                            
+                            # Add as text element
+                            text_element = {
+                                'type': 'text_line',
+                                'bbox': [x1, y1, x2, y2],
+                                'text': text,
+                                'confidence': confidence
+                            }
+                            result.append(text_element)
         
         for idx, element in enumerate(result):
             if 'bbox' in element:
