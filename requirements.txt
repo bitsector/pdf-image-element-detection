@@ -1,0 +1,28 @@
+PyMuPDF==1.24.14
+Pillow==10.4.0
+opencv-python==4.10.0.84
+numpy<2.0
+# PaddleOCR and its dependencies
+paddlepaddle>=2.5.0
+paddleocr==2.8.1
+easyocr==1.7.2
+pandas==2.2.3
+
+# Method 4: YOLO Object Detection - using latest available version
+ultralytics>=8.3.0
+
+# Method 5: LayoutLM Multimodal Document AI
+torch>=2.0.0
+transformers>=4.40.0
+pytesseract>=0.3.0
+
+# Method 2: Unstructured Library (without Detectron2 for now)
+unstructured>=0.15.0
+# detectron2 @ git+https://github.com/facebookresearch/detectron2.git@v0.6#egg=detectron2  # Commented out - install manually if needed
+
+# Method 6: AWS Textract (commented out for now)
+# boto3>=1.35.0
+
+# Additional utilities
+scikit-image>=0.25.0
+matplotlib>=3.9.0
