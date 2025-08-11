@@ -7,6 +7,7 @@ import os
 import json
 import cv2
 import numpy as np
+import shutil
 
 
 def detect_elements_with_yolo(image_path, save_results=True, model_name="yolo11n.pt"):
@@ -79,12 +80,87 @@ def detect_elements_with_yolo(image_path, save_results=True, model_name="yolo11n
                 json.dump(results, f, indent=2, ensure_ascii=False)
             print(f"YOLO results saved to: {output_path}")
         
+        # Create overlay visualization on copied image
+        if results:
+            create_yolo_overlay(image_path, results)
+        
         print(f"YOLO detected {len(results)} elements")
         return results
         
     except Exception as e:
         print(f"Error in YOLO detection: {str(e)}")
         return []
+
+
+def create_yolo_overlay(image_path, results):
+    """
+    Create an overlay visualization on a copy of the original image
+    
+    Args:
+        image_path (str): Path to the original image
+        results (list): Results from detect_elements_with_yolo
+    """
+    # Create a copy of the original image
+    base_name = os.path.splitext(os.path.basename(image_path))[0]
+    dir_name = os.path.dirname(image_path)
+    overlay_path = os.path.join(dir_name, f"{base_name}_yolo_overlay.png")
+    
+    # Copy the original image
+    shutil.copy2(image_path, overlay_path)
+    
+    # Load the copied image
+    img = cv2.imread(overlay_path)
+    if img is None:
+        print(f"Could not load image for overlay: {overlay_path}")
+        return
+    
+    # Define colors for different object types (COCO classes)
+    colors = {
+        'person': (255, 0, 0),        # Blue
+        'book': (0, 255, 0),          # Green
+        'cell phone': (0, 0, 255),    # Red
+        'laptop': (255, 255, 0),      # Cyan
+        'mouse': (255, 0, 255),       # Magenta
+        'keyboard': (0, 255, 255),    # Yellow
+        'bottle': (128, 0, 128),      # Purple
+        'cup': (255, 165, 0),         # Orange
+        'chair': (0, 128, 255),       # Light Blue
+        'couch': (128, 255, 0),       # Light Green
+        'potted plant': (255, 192, 203), # Pink
+        'bed': (165, 42, 42),         # Brown
+        'dining table': (128, 128, 0), # Olive
+        'toilet': (128, 0, 0),        # Maroon
+        'tv': (0, 128, 0),            # Dark Green
+        'scissors': (0, 0, 128),      # Navy
+        'teddy bear': (255, 20, 147), # Deep Pink
+        'hair drier': (255, 69, 0),   # Red Orange
+        'toothbrush': (50, 205, 50)   # Lime Green
+    }
+    
+    for element in results:
+        bbox = element['bbox']
+        element_type = element['type']
+        confidence = element['confidence']
+        
+        # Get color for element type (default to gray if not found)
+        color = colors.get(element_type, (128, 128, 128))
+        
+        # Draw bounding box
+        cv2.rectangle(img, 
+                     (bbox['x'], bbox['y']), 
+                     (bbox['x'] + bbox['width'], bbox['y'] + bbox['height']), 
+                     color, 2)
+        
+        # Add label with confidence
+        label = f"{element_type} ({confidence:.2f})"
+        cv2.putText(img, label, 
+                   (bbox['x'], bbox['y'] - 10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+    
+    # Save the overlay
+    cv2.imwrite(overlay_path, img)
+    print(f"YOLO overlay created: {overlay_path}")
+    return overlay_path
 
 
 def visualize_yolo_results(image_path, results, output_path=None):
@@ -223,6 +299,10 @@ def detect_custom_document_elements(image_path, save_results=True):
                 json.dump(results, f, indent=2, ensure_ascii=False)
             print(f"YOLO-World results saved to: {output_path}")
         
+        # Create overlay visualization on copied image
+        if results:
+            create_yolo_world_overlay(image_path, results)
+        
         print(f"YOLO-World detected {len(results)} document elements")
         return results
         
@@ -230,6 +310,76 @@ def detect_custom_document_elements(image_path, save_results=True):
         print(f"Error in YOLO-World detection: {str(e)}")
         # Fallback to regular YOLO
         return detect_elements_with_yolo(image_path, save_results, "yolo11n.pt")
+
+
+def create_yolo_world_overlay(image_path, results):
+    """
+    Create an overlay visualization on a copy of the original image for YOLO-World results
+    
+    Args:
+        image_path (str): Path to the original image
+        results (list): Results from detect_custom_document_elements
+    """
+    # Create a copy of the original image
+    base_name = os.path.splitext(os.path.basename(image_path))[0]
+    dir_name = os.path.dirname(image_path)
+    overlay_path = os.path.join(dir_name, f"{base_name}_yolo_world_overlay.png")
+    
+    # Copy the original image
+    shutil.copy2(image_path, overlay_path)
+    
+    # Load the copied image
+    img = cv2.imread(overlay_path)
+    if img is None:
+        print(f"Could not load image for overlay: {overlay_path}")
+        return
+    
+    # Define colors for different document element types
+    colors = {
+        'text block': (0, 255, 0),        # Green
+        'paragraph': (0, 255, 128),       # Light Green
+        'title': (0, 0, 255),             # Red
+        'heading': (128, 0, 255),         # Purple
+        'table': (255, 0, 0),             # Blue
+        'image': (255, 255, 0),           # Cyan
+        'figure': (255, 128, 0),          # Orange
+        'logo': (128, 255, 255),          # Light Cyan
+        'signature': (255, 0, 255),       # Magenta
+        'price': (0, 255, 255),           # Yellow
+        'offer': (255, 128, 128),         # Light Red
+        'discount': (128, 255, 128),      # Light Green
+        'sale': (255, 255, 128),          # Light Yellow
+        'banner': (128, 128, 255),        # Light Blue
+        'button': (255, 192, 203),        # Pink
+        'form': (165, 42, 42),            # Brown
+        'checkbox': (0, 128, 255),        # Light Blue
+        'textbox': (128, 255, 0)          # Lime
+    }
+    
+    for element in results:
+        bbox = element['bbox']
+        element_type = element['type']
+        confidence = element['confidence']
+        
+        # Get color for element type (default to gray if not found)
+        color = colors.get(element_type, (128, 128, 128))
+        
+        # Draw bounding box
+        cv2.rectangle(img, 
+                     (bbox['x'], bbox['y']), 
+                     (bbox['x'] + bbox['width'], bbox['y'] + bbox['height']), 
+                     color, 2)
+        
+        # Add label with confidence
+        label = f"{element_type} ({confidence:.2f})"
+        cv2.putText(img, label, 
+                   (bbox['x'], bbox['y'] - 10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+    
+    # Save the overlay
+    cv2.imwrite(overlay_path, img)
+    print(f"YOLO-World overlay created: {overlay_path}")
+    return overlay_path
 
 
 if __name__ == "__main__":

@@ -13,7 +13,8 @@ from method_unstructured import detect_elements_with_unstructured, visualize_uns
 from method_opencv import detect_elements_with_opencv, visualize_opencv_results, detect_text_regions_opencv
 from method_yolo import detect_elements_with_yolo, visualize_yolo_results, detect_custom_document_elements
 from method_layoutlm import detect_elements_with_layoutlm, visualize_layoutlm_results
-# from method_aws_textract import detect_elements_with_textract, visualize_textract_results, check_aws_credentials  # Commented out
+from method_aws_textract import detect_elements_with_textract, visualize_textract_results, check_aws_credentials
+from method_chatgpt import detect_elements_with_chatgpt, visualize_chatgpt_results
 
 
 def run_all_methods_on_pdf(pdf_path, output_dir="temp"):
@@ -53,7 +54,8 @@ def run_all_methods_on_pdf(pdf_path, output_dir="temp"):
         ("OpenCV", detect_elements_with_opencv, visualize_opencv_results),
         ("YOLO", detect_elements_with_yolo, visualize_yolo_results),
         ("LayoutLM", detect_elements_with_layoutlm, visualize_layoutlm_results),
-        # ("AWS_Textract", detect_elements_with_textract, visualize_textract_results)  # Commented out for now
+        ("AWS_Textract", detect_elements_with_textract, visualize_textract_results),
+        # ("ChatGPT_Vision", detect_elements_with_chatgpt, visualize_chatgpt_results)
     ]
     
     for page_num, img_bytes in images:
@@ -104,41 +106,47 @@ def run_all_methods_on_pdf(pdf_path, output_dir="temp"):
                     'elements': []
                 }
         
-        # Run additional OpenCV method for text regions
-        print("Running OpenCV Text Regions...")
-        try:
-            text_results = detect_text_regions_opencv(image_path, save_results=True)
-            all_results[page_key]["OpenCV_TextRegions"] = {
-                'status': 'success',
-                'element_count': len(text_results),
-                'elements': text_results
-            }
-            print(f"  ✓ OpenCV Text Regions: {len(text_results)} regions detected")
-        except Exception as e:
-            print(f"  ✗ OpenCV Text Regions: Error - {str(e)}")
-            all_results[page_key]["OpenCV_TextRegions"] = {
-                'status': 'error',
-                'error': str(e),
-                'elements': []
-            }
+        # Check if OpenCV is enabled in methods_to_run
+        opencv_enabled = any("OpenCV" in method[0] for method in methods_to_run)
+        if opencv_enabled:
+            # Run additional OpenCV method for text regions
+            print("Running OpenCV Text Regions...")
+            try:
+                text_results = detect_text_regions_opencv(image_path, save_results=True)
+                all_results[page_key]["OpenCV_TextRegions"] = {
+                    'status': 'success',
+                    'element_count': len(text_results),
+                    'elements': text_results
+                }
+                print(f"  ✓ OpenCV Text Regions: {len(text_results)} regions detected")
+            except Exception as e:
+                print(f"  ✗ OpenCV Text Regions: Error - {str(e)}")
+                all_results[page_key]["OpenCV_TextRegions"] = {
+                    'status': 'error',
+                    'error': str(e),
+                    'elements': []
+                }
         
-        # Run additional YOLO method for custom document elements
-        print("Running YOLO Custom Document Detection...")
-        try:
-            custom_results = detect_custom_document_elements(image_path, save_results=True)
-            all_results[page_key]["YOLO_Custom"] = {
-                'status': 'success',
-                'element_count': len(custom_results),
-                'elements': custom_results
-            }
-            print(f"  ✓ YOLO Custom: {len(custom_results)} elements detected")
-        except Exception as e:
-            print(f"  ✗ YOLO Custom: Error - {str(e)}")
-            all_results[page_key]["YOLO_Custom"] = {
-                'status': 'error',
-                'error': str(e),
-                'elements': []
-            }
+        # Check if YOLO is enabled in methods_to_run
+        yolo_enabled = any("YOLO" in method[0] for method in methods_to_run)
+        if yolo_enabled:
+            # Run additional YOLO method for custom document elements
+            print("Running YOLO Custom Document Detection...")
+            try:
+                custom_results = detect_custom_document_elements(image_path, save_results=True)
+                all_results[page_key]["YOLO_Custom"] = {
+                    'status': 'success',
+                    'element_count': len(custom_results),
+                    'elements': custom_results
+                }
+                print(f"  ✓ YOLO Custom: {len(custom_results)} elements detected")
+            except Exception as e:
+                print(f"  ✗ YOLO Custom: Error - {str(e)}")
+                all_results[page_key]["YOLO_Custom"] = {
+                    'status': 'error',
+                    'error': str(e),
+                    'elements': []
+                }
     
     # Step 3: Save comprehensive results
     results_path = f"{output_dir}/all_methods_results_{timestamp}.json"
@@ -300,6 +308,12 @@ def main():
         print("✓ Transformers (LayoutLM) available")
     except ImportError:
         missing_deps.append("transformers torch")
+    
+    try:
+        import openai
+        print("✓ OpenAI (ChatGPT Vision) available")
+    except ImportError:
+        missing_deps.append("openai python-dotenv")
     
     # AWS Textract commented out
     # try:

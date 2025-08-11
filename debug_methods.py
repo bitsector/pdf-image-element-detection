@@ -49,19 +49,46 @@ def debug_method(method_name, detection_func, visualization_func, image_path):
 
 def main():
     """Debug all methods"""
-    # Test images (adjust paths as needed)
-    test_images = [
-        "temp/temp_1733875200_page_1.png",  # Update with actual timestamp
-        "temp/temp_1733875200_page_2.png"
-    ]
-    
-    # Find actual test images in temp directory
+    # First, check if we need to create test images
     temp_dir = "temp"
+    test_images = []
+    
     if os.path.exists(temp_dir):
-        png_files = [f for f in os.listdir(temp_dir) if f.endswith('.png') and 'page' in f]
+        png_files = [f for f in os.listdir(temp_dir) if f.endswith('.png') and 'page' in f and 'temp_' in f]
         if png_files:
             png_files.sort()
             test_images = [os.path.join(temp_dir, f) for f in png_files[:2]]  # First 2 pages
+    
+    # If no images found, create them from PDF
+    if not test_images:
+        print("No test images found in temp/ directory")
+        print("Creating images from PDF...")
+        
+        # Import and run PDF conversion
+        try:
+            from pdf_to_images import pdf_to_image_bytes, save_images_to_disk
+            pdf_file = "brochour_with_prices-merged.pdf"
+            
+            if os.path.exists(pdf_file):
+                # Convert PDF to images
+                images = pdf_to_image_bytes(pdf_file)
+                if images:
+                    save_images_to_disk(images, temp_dir)
+                    
+                    # Find the newly created images
+                    png_files = [f for f in os.listdir(temp_dir) if f.endswith('.png') and 'page' in f]
+                    png_files.sort()
+                    test_images = [os.path.join(temp_dir, f) for f in png_files[:2]]
+                    print(f"✅ Created {len(test_images)} test images")
+                else:
+                    print("❌ Failed to extract images from PDF")
+                    return
+            else:
+                print(f"❌ PDF file not found: {pdf_file}")
+                return
+        except Exception as e:
+            print(f"❌ Error creating test images: {e}")
+            return
     
     methods_to_debug = [
         ("OpenCV", detect_elements_with_opencv, visualize_opencv_results),

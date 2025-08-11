@@ -20,8 +20,13 @@ pytesseract>=0.3.0
 unstructured>=0.15.0
 # detectron2 @ git+https://github.com/facebookresearch/detectron2.git@v0.6#egg=detectron2  # Commented out - install manually if needed
 
-# Method 6: AWS Textract (commented out for now)
-# boto3>=1.35.0
+# Method 6: AWS Textract  
+boto3>=1.35.0
+
+# Method 7: ChatGPT Vision API
+openai>=1.0.0
+python-dotenv>=1.0.0
+requests>=2.31.0
 
 # Additional utilities
 scikit-image>=0.25.0

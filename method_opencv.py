@@ -7,6 +7,7 @@ import os
 import json
 import cv2
 import numpy as np
+import shutil
 
 
 def detect_elements_with_opencv(image_path, save_results=True):
@@ -131,12 +132,72 @@ def detect_elements_with_opencv(image_path, save_results=True):
                 json.dump(results, f, indent=2, ensure_ascii=False)
             print(f"OpenCV results saved to: {output_path}")
         
+        # Create overlay visualization on copied image
+        if results:
+            create_opencv_overlay(image_path, results)
+        
         print(f"OpenCV detected {len(results)} unique rectangular elements")
         return results
         
     except Exception as e:
         print(f"Error in OpenCV detection: {str(e)}")
         return []
+
+
+def create_opencv_overlay(image_path, results):
+    """
+    Create an overlay visualization on a copy of the original image
+    
+    Args:
+        image_path (str): Path to the original image
+        results (list): Results from detect_elements_with_opencv
+    """
+    # Create a copy of the original image
+    base_name = os.path.splitext(os.path.basename(image_path))[0]
+    dir_name = os.path.dirname(image_path)
+    overlay_path = os.path.join(dir_name, f"{base_name}_opencv_overlay.png")
+    
+    # Copy the original image
+    shutil.copy2(image_path, overlay_path)
+    
+    # Load the copied image
+    img = cv2.imread(overlay_path)
+    if img is None:
+        print(f"Could not load image for overlay: {overlay_path}")
+        return
+    
+    # Define colors for different rectangle types
+    colors = {
+        'square': (255, 0, 0),              # Blue
+        'rectangle': (0, 255, 0),           # Green
+        'horizontal_rectangle': (0, 0, 255), # Red
+        'vertical_rectangle': (255, 255, 0), # Cyan
+        'unknown': (128, 128, 128)          # Gray
+    }
+    
+    for element in results:
+        bbox = element['bbox']
+        rect_type = element['type']
+        
+        # Get color for rectangle type
+        color = colors.get(rect_type, colors['unknown'])
+        
+        # Draw bounding box
+        cv2.rectangle(img, 
+                     (bbox['x'], bbox['y']), 
+                     (bbox['x'] + bbox['width'], bbox['y'] + bbox['height']), 
+                     color, 2)
+        
+        # Add label with type and dimensions
+        label = f"{rect_type} ({bbox['width']}x{bbox['height']})"
+        cv2.putText(img, label, 
+                   (bbox['x'], bbox['y'] - 10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+    
+    # Save the overlay
+    cv2.imwrite(overlay_path, img)
+    print(f"OpenCV overlay created: {overlay_path}")
+    return overlay_path
 
 
 def visualize_opencv_results(image_path, results, output_path=None):
@@ -252,12 +313,62 @@ def detect_text_regions_opencv(image_path, save_results=True):
                 json.dump(results, f, indent=2, ensure_ascii=False)
             print(f"OpenCV text region results saved to: {output_path}")
         
+        # Create overlay visualization on copied image
+        if results:
+            create_opencv_text_overlay(image_path, results)
+        
         print(f"OpenCV detected {len(results)} text regions")
         return results
         
     except Exception as e:
         print(f"Error in OpenCV text detection: {str(e)}")
         return []
+
+
+def create_opencv_text_overlay(image_path, results):
+    """
+    Create an overlay visualization on a copy of the original image for text regions
+    
+    Args:
+        image_path (str): Path to the original image
+        results (list): Results from detect_text_regions_opencv
+    """
+    # Create a copy of the original image
+    base_name = os.path.splitext(os.path.basename(image_path))[0]
+    dir_name = os.path.dirname(image_path)
+    overlay_path = os.path.join(dir_name, f"{base_name}_opencv_text_overlay.png")
+    
+    # Copy the original image
+    shutil.copy2(image_path, overlay_path)
+    
+    # Load the copied image
+    img = cv2.imread(overlay_path)
+    if img is None:
+        print(f"Could not load image for overlay: {overlay_path}")
+        return
+    
+    # Define color for text regions
+    color = (0, 255, 255)  # Yellow for text regions
+    
+    for element in results:
+        bbox = element['bbox']
+        
+        # Draw bounding box
+        cv2.rectangle(img, 
+                     (bbox['x'], bbox['y']), 
+                     (bbox['x'] + bbox['width'], bbox['y'] + bbox['height']), 
+                     color, 2)
+        
+        # Add label with dimensions
+        label = f"text ({bbox['width']}x{bbox['height']})"
+        cv2.putText(img, label, 
+                   (bbox['x'], bbox['y'] - 10), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
+    
+    # Save the overlay
+    cv2.imwrite(overlay_path, img)
+    print(f"OpenCV text overlay created: {overlay_path}")
+    return overlay_path
 
 
 if __name__ == "__main__":
